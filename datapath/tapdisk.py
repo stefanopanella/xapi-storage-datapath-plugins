@@ -28,7 +28,7 @@ class Tapdisk:
         self.secondary = None  # mirror destination
 
     def __repr__(self):
-        return "Tapdisk(%d, %d, %s)" % (self.minor, self.pid, self.f)
+        return "Tapdisk(%s, %s, %s)" % (self.minor, self.pid, self.f)
 
     def destroy(self, dbg):
         self.pause(dbg)
