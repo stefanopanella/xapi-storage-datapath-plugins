@@ -9,6 +9,7 @@ import signal
 import xapi
 import image
 from xapi.storage.common import call
+from xapi.storage import log
 
 # Use Xen tapdisk to create block devices from files
 
@@ -25,6 +26,9 @@ class Tapdisk:
         self.pid = pid
         self.f = f
         self.secondary = None  # mirror destination
+
+    def __repr__(self):
+        return "Tapdisk(%d, %d, %s)" % (self.minor, self.pid, self.f)
 
     def destroy(self, dbg):
         self.pause(dbg)
@@ -118,7 +122,10 @@ def create(dbg):
 
 def list(dbg):
     results = []
-    for line in call(dbg, ["tap-ctl", "list"]).split("\n"):
+    log.debug("%s: calling tap-ctl list" % (dbg))
+    output = call(dbg, ["tap-ctl", "list"])
+    log.debug("%s: tap-ctl list returned '%s'" % (dbg, output))
+    for line in output.split("\n"):
         bits = line.split()
         if bits == []:
             continue
@@ -149,8 +156,13 @@ def list(dbg):
 
 
 def find_by_file(dbg, f):
+    log.debug("%s: find_by_file f=%s" % (dbg, f))
     assert (isinstance(f, image.Path))
     path = os.path.realpath(f.path)
-    for tapdisk in list(dbg):
+    log.debug("%s: find_by_file path=%s" % (dbg, path))
+    tds = list(dbg)
+    log.debug("%s: find_by_file list=%s" % (dbg, tds))
+    for tapdisk in tds:
         if tapdisk.f is not None and tapdisk.f.path == path:
+            log.debug("%s: returning td %s" % (dbg, tapdisk))
             return tapdisk
