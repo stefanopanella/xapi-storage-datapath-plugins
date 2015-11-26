@@ -50,10 +50,13 @@ class Tapdisk:
               str(self.pid)])
         self.f = None
 
-    def open(self, dbg, f):
+    def open(self, dbg, f, o_direct=True):
         assert (isinstance(f, image.Vhd) or isinstance(f, image.Raw))
-        call(dbg, ["tap-ctl", "open", "-m", str(self.minor),
-                   "-p", str(self.pid), "-a", str(f)])
+        args = ["tap-ctl", "open", "-m", str(self.minor),
+                   "-p", str(self.pid), "-a", str(f)]
+        if not o_direct:
+            args.append("-D")
+        call(dbg, args)
         self.f = f
 
     def pause(self, dbg):
