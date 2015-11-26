@@ -27,9 +27,23 @@ class Implementation(xapi.storage.api.datapath.Datapath_skeleton):
             img = image.Raw(u.path)
         else:
             raise
+
+        # See whether we should open it O_DIRECT
+        o_direct = self._get_uri_param(dbg, uri, 'o_direct', "true")
+        o_direct = o_direct in ['true', 't', 'on', '1', 'yes']
+        log.debug("o_direct = %s" % (o_direct))
+
         tap = self.load_tapdisk(dbg, uri)
-        tap.open(dbg, img)
+        tap.open(dbg, img, o_direct)
         self.save_tapdisk(dbg, uri, tap)
+
+    def _get_uri_param(self, dbg, uri, param_name, default=None):
+        u = urlparse.urlparse(uri)
+        q = urlparse.parse_qs(u.query)
+        if param_name in q:
+            return q[param_name][0]
+        else:
+            return default
 
     def attach(self, dbg, uri, domain):
         tap = tapdisk.create(dbg)
