@@ -10,6 +10,7 @@ import xapi
 import image
 from xapi.storage.common import call
 from xapi.storage import log
+import pickle
 
 # Use Xen tapdisk to create block devices from files
 
@@ -17,6 +18,9 @@ blktap2_prefix = "/dev/xen/blktap-2/tapdev"
 
 nbdclient_prefix = "/var/run/blktap-control/nbdclient"
 nbdserver_prefix = "/var/run/blktap-control/nbdserver"
+
+TD_PROC_METADATA_DIR = "/var/run/nonpersistent/dp-tapdisk"
+TD_PROC_METADATA_FILE = "meta.pickle"
 
 
 class Tapdisk:
@@ -169,3 +173,39 @@ def find_by_file(dbg, f):
         if tapdisk.f is not None and tapdisk.f.path == path:
             log.debug("%s: returning td %s" % (dbg, tapdisk))
             return tapdisk
+
+def _metadata_dir(uri):
+    return TD_PROC_METADATA_DIR + "/" + uri
+
+def save_tapdisk_metadata(dbg, uri, tap):
+    """ Record the tapdisk metadata for this URI in host-local storage """
+    dirname = _metadata_dir(uri)
+    try:
+        os.makedirs(dirname, mode=0755)
+    except OSError as e:
+        if e.errno != 17:  # 17 == EEXIST, which is harmless
+            raise e
+    with open(dirname + "/" + TD_PROC_METADATA_FILE, "w") as fd:
+        pickle.dump(tap.__dict__, fd)
+
+def load_tapdisk_metadata(dbg, uri):
+    """Recover the tapdisk metadata for this URI from host-local
+       storage."""
+    dirname = _metadata_dir(uri)
+    if not(os.path.exists(dirname)):
+        # XXX throw a better exception
+        raise xapi.storage.api.volume.Volume_does_not_exist(dirname)
+    with open(dirname + "/" + TD_PROC_METADATA_FILE, "r") as fd:
+        meta = pickle.load(fd)
+        tap = Tapdisk(meta['minor'], meta['pid'], meta['f'])
+        tap.secondary = meta['secondary']
+        return tap
+
+def forget_tapdisk_metadata(dbg, uri):
+    """Delete the tapdisk metadata for this URI from host-local storage."""
+    dirname = _metadata_dir(uri)
+    try:
+        os.unlink(dirname + "/" + TD_PROC_METADATA_FILE)
+    except:
+        pass
+
