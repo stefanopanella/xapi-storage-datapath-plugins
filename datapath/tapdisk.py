@@ -8,6 +8,7 @@ import signal
 
 import xapi
 import image
+import xapi.storage.api.volume
 from xapi.storage.common import call
 from xapi.storage import log
 import pickle
@@ -128,52 +129,17 @@ def create(dbg):
     return Tapdisk(minor, pid, None)
 
 
-def list(dbg):
-    results = []
-    log.debug("%s: calling tap-ctl list" % (dbg))
-    output = call(dbg, ["tap-ctl", "list"])
-    log.debug("%s: tap-ctl list returned '%s'" % (dbg, output))
-    for line in output.split("\n"):
-        bits = line.split()
-        if bits == []:
-            continue
-        prefix = "pid="
-        pid = None
-        if bits[0].startswith(prefix):
-            pid = int(bits[0][len(prefix):])
-        minor = None
-        prefix = "minor="
-        if len(bits) <= 1:
-            results.append(Tapdisk(None, pid, None))
-            continue
-        if bits[1].startswith(prefix):
-            minor = int(bits[1][len(prefix):])
-        if len(bits) <= 3:
-            results.append(Tapdisk(minor, pid, None))
-        else:
-            before, args = line.split("args=")
-            prefix = "aio:"
-            if args.startswith(prefix):
-                this = image.Raw(os.path.realpath(args[len(prefix):]))
-                results.append(Tapdisk(minor, pid, this))
-            prefix = "vhd:"
-            if args.startswith(prefix):
-                this = image.Vhd(os.path.realpath(args[len(prefix):]))
-                results.append(Tapdisk(minor, pid, this))
-    return results
-
-
 def find_by_file(dbg, f):
     log.debug("%s: find_by_file f=%s" % (dbg, f))
     assert (isinstance(f, image.Path))
-    path = os.path.realpath(f.path)
-    log.debug("%s: find_by_file path=%s" % (dbg, path))
-    tds = list(dbg)
-    log.debug("%s: find_by_file list=%s" % (dbg, tds))
-    for tapdisk in tds:
-        if tapdisk.f is not None and tapdisk.f.path == path:
-            log.debug("%s: returning td %s" % (dbg, tapdisk))
-            return tapdisk
+    # See whether this host has any metadata about this file
+    try:
+        log.debug("%s: find_by_file trying uri=%s" % (dbg, f.path))
+        tap = load_tapdisk_metadata(dbg, f.path)
+        log.debug("%s: returning td %s" % (dbg, tap))
+        return tap
+    except xapi.storage.api.volume.Volume_does_not_exist:
+        pass
 
 def _metadata_dir(path):
     u = urlparse.urlparse(path)
