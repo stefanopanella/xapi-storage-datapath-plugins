@@ -195,10 +195,11 @@ def load_tapdisk_metadata(dbg, path):
        storage."""
     dirname = _metadata_dir(path)
     log.debug("%s: load_tapdisk_metadata: trying '%s'" % (dbg, dirname))
-    if not(os.path.exists(dirname)):
+    filename = dirname + "/" + TD_PROC_METADATA_FILE
+    if not(os.path.exists(filename)):
         # XXX throw a better exception
         raise xapi.storage.api.volume.Volume_does_not_exist(dirname)
-    with open(dirname + "/" + TD_PROC_METADATA_FILE, "r") as fd:
+    with open(filename, "r") as fd:
         meta = pickle.load(fd)
         tap = Tapdisk(meta['minor'], meta['pid'], meta['f'])
         tap.secondary = meta['secondary']
