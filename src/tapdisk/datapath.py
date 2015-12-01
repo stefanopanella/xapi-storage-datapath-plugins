@@ -29,9 +29,9 @@ class Implementation(xapi.storage.api.datapath.Datapath_skeleton):
         o_direct = o_direct in ['true', 't', 'on', '1', 'yes']
         log.debug("o_direct = %s" % (o_direct))
 
-        tap = tapdisk.load_tapdisk_metadata(dbg, uri)
+        tap = tapdisk.load_tapdisk_metadata(dbg, u.path)
         tap.open(dbg, img, o_direct)
-        tapdisk.save_tapdisk_metadata(dbg, uri, tap)
+        tapdisk.save_tapdisk_metadata(dbg, u.path, tap)
 
     def _get_uri_param(self, dbg, uri, param_name, default=None):
         u = urlparse.urlparse(uri)
@@ -42,8 +42,9 @@ class Implementation(xapi.storage.api.datapath.Datapath_skeleton):
             return default
 
     def attach(self, dbg, uri, domain):
+        u = urlparse.urlparse(uri)
         tap = tapdisk.create(dbg)
-        tapdisk.save_tapdisk_metadata(dbg, uri, tap)
+        tapdisk.save_tapdisk_metadata(dbg, u.path, tap)
         return {
             'domain_uuid': '0',
             'implementation': ['Tapdisk3', tap.block_device()],
@@ -57,12 +58,14 @@ class Implementation(xapi.storage.api.datapath.Datapath_skeleton):
         return None
 
     def detach(self, dbg, uri, domain):
-        tap = tapdisk.load_tapdisk_metadata(dbg, uri)
+        u = urlparse.urlparse(uri)
+        tap = tapdisk.load_tapdisk_metadata(dbg, u.path)
         tap.destroy(dbg)
-        tapdisk.forget_tapdisk_metadata(dbg, uri)
+        tapdisk.forget_tapdisk_metadata(dbg, u.path)
 
     def deactivate(self, dbg, uri, domain):
-        tap = tapdisk.load_tapdisk_metadata(dbg, uri)
+        u = urlparse.urlparse(uri)
+        tap = tapdisk.load_tapdisk_metadata(dbg, u.path)
         tap.close(dbg)
 
     def open(self, dbg, uri, persistent):

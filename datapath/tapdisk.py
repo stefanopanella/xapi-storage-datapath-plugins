@@ -11,6 +11,7 @@ import image
 from xapi.storage.common import call
 from xapi.storage import log
 import pickle
+import urlparse
 
 # Use Xen tapdisk to create block devices from files
 
@@ -174,12 +175,13 @@ def find_by_file(dbg, f):
             log.debug("%s: returning td %s" % (dbg, tapdisk))
             return tapdisk
 
-def _metadata_dir(uri):
-    return TD_PROC_METADATA_DIR + "/" + uri
+def _metadata_dir(path):
+    u = urlparse.urlparse(path)
+    return TD_PROC_METADATA_DIR + "/" + os.path.realpath(path)
 
-def save_tapdisk_metadata(dbg, uri, tap):
-    """ Record the tapdisk metadata for this URI in host-local storage """
-    dirname = _metadata_dir(uri)
+def save_tapdisk_metadata(dbg, path, tap):
+    """ Record the tapdisk metadata for this VDI in host-local storage """
+    dirname = _metadata_dir(path)
     try:
         os.makedirs(dirname, mode=0755)
     except OSError as e:
@@ -188,10 +190,11 @@ def save_tapdisk_metadata(dbg, uri, tap):
     with open(dirname + "/" + TD_PROC_METADATA_FILE, "w") as fd:
         pickle.dump(tap.__dict__, fd)
 
-def load_tapdisk_metadata(dbg, uri):
-    """Recover the tapdisk metadata for this URI from host-local
+def load_tapdisk_metadata(dbg, path):
+    """Recover the tapdisk metadata for this VDI from host-local
        storage."""
-    dirname = _metadata_dir(uri)
+    dirname = _metadata_dir(path)
+    log.debug("%s: load_tapdisk_metadata: trying '%s'" % (dbg, dirname))
     if not(os.path.exists(dirname)):
         # XXX throw a better exception
         raise xapi.storage.api.volume.Volume_does_not_exist(dirname)
@@ -201,9 +204,9 @@ def load_tapdisk_metadata(dbg, uri):
         tap.secondary = meta['secondary']
         return tap
 
-def forget_tapdisk_metadata(dbg, uri):
-    """Delete the tapdisk metadata for this URI from host-local storage."""
-    dirname = _metadata_dir(uri)
+def forget_tapdisk_metadata(dbg, path):
+    """Delete the tapdisk metadata for this VDI from host-local storage."""
+    dirname = _metadata_dir(path)
     try:
         os.unlink(dirname + "/" + TD_PROC_METADATA_FILE)
     except:
