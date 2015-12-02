@@ -142,7 +142,6 @@ def find_by_file(dbg, f):
         pass
 
 def _metadata_dir(path):
-    u = urlparse.urlparse(path)
     return TD_PROC_METADATA_DIR + "/" + os.path.realpath(path)
 
 def save_tapdisk_metadata(dbg, path, tap):
