@@ -42,6 +42,7 @@ class Implementation(xapi.storage.api.datapath.Datapath_skeleton):
             return default
 
     def attach(self, dbg, uri, domain):
+        # FIXME: add lvm activation code
         u = urlparse.urlparse(uri)
         tap = tapdisk.create(dbg)
         tapdisk.save_tapdisk_metadata(dbg, u.path, tap)
