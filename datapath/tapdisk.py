@@ -60,9 +60,9 @@ class Tapdisk:
         assert (isinstance(f, image.Vhd) or isinstance(f, image.Raw))
         args = ["tap-ctl", "open", "-m", str(self.minor),
                    "-p", str(self.pid), "-a", str(f)]
-        #args.append("-D")
-	args.append("-T")
-	args.append("-q 512")
+        args.append("-D")
+        args.append("-T")
+        args.append("-q 512")
         call(dbg, args)
         self.f = f
 

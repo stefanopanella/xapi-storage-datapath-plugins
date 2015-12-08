@@ -8,7 +8,8 @@ import xapi.storage.api.datapath
 import xapi.storage.api.volume
 from xapi.storage.datapath import tapdisk, image
 from xapi.storage import log
-
+from xapi.storage.common import call
+import time
 
 class Implementation(xapi.storage.api.datapath.Datapath_skeleton):
 
@@ -44,6 +45,31 @@ class Implementation(xapi.storage.api.datapath.Datapath_skeleton):
     def attach(self, dbg, uri, domain):
         # FIXME: add lvm activation code
         u = urlparse.urlparse(uri)
+
+        (vgname, lvname, scsid) = self._getVgLvScsid(dbg, u.path)
+        log.debug("%s Vg=%s Lv=%s Scsid%s" % (dbg, vgname, lvname, scsid))
+        vg = self._vgOpen(dbg, vgname, "r", scsid)
+        lv = vg.lvFromName(lvname)
+        lv.activate()
+        vg.close()
+        cmd = ["/usr/bin/vhd-util", "query", "-n", u.path, "-P"]
+        output = call(dbg, cmd)
+        log.debug("%s output=%s" % (dbg, output))
+        output = output[:-1]
+        if output[-6:] == "parent":
+            log.debug("No Parent")
+        else:
+            output = output.replace("--", "-")
+            log.debug("%s" % output[-36:])
+            activation_file = "/var/run/nonpersistent/" + vgname + "/" + output[-36:]
+            if (not os.path.exists(activation_file)):
+                vg = self._vgOpen(dbg, vgname, "r", scsid)
+                lv = vg.lvFromName(output[-36:])
+                log.debug("Activating %s" % lv.getName())
+                lv.activate()
+                vg.close()
+                open(activation_file, 'a').close()
+
         tap = tapdisk.create(dbg)
         tapdisk.save_tapdisk_metadata(dbg, u.path, tap)
         return {
@@ -64,6 +90,15 @@ class Implementation(xapi.storage.api.datapath.Datapath_skeleton):
         tap.destroy(dbg)
         tapdisk.forget_tapdisk_metadata(dbg, u.path)
 
+        #(vgname, lvname, scsid) = self._getVgLvScsid(dbg, u.path)
+        #log.debug("%s Vg=%s Lv=%s Scsid%s" % (dbg, vgname, lvname, scsid))
+        #vg = self._vgOpen(dbg, vgname, "w", scsid)
+        #lv = vg.lvFromName(lvname)
+        #lv.deactivate()
+        #cmd = ["/usr/bin/vhd-util", "query", "-n", u.path, "-P"]
+        #output = call(dbg, cmd)
+        #log.debug("%s output=%s" % (dbg, output))
+
     def deactivate(self, dbg, uri, domain):
         u = urlparse.urlparse(uri)
         tap = tapdisk.load_tapdisk_metadata(dbg, u.path)
@@ -75,6 +110,22 @@ class Implementation(xapi.storage.api.datapath.Datapath_skeleton):
         if not(os.path.exists(u.path)):
             raise xapi.storage.api.volume.Volume_does_not_exist(u.path)
         return None
+
+    def _getVgLvScsid(self, dbg, path):
+        log.debug("%s path=%s" % (dbg, path))
+        parts = path.split("/")
+        vgname = parts[2]
+        lvname = parts[3]
+        with open("/var/run/nonpersistent/" + vgname + "/scsid", "r") as text_file:
+            scsid = text_file.read()
+        return (vgname, lvname, scsid)
+   
+    def _vgOpen(self, dbg, vgname, rw, scsid):
+        log.debug("vgOpen")
+        os.environ['LVM_DEVICE'] = "/dev/disk/by-scsid/" + scsid
+        import lvm
+        vg = lvm.vgOpen(vgname, rw)
+        return vg
 
 if __name__ == "__main__":
     log.log_call_argv()
