@@ -9,7 +9,7 @@ class Path:
     """An entity on the filesystem"""
 
     def __init__(self, path):
-        self.path = os.path.realpath(path)
+        self.path = path
 
 
 class Vhd(Path):
